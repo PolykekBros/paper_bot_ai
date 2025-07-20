@@ -1,27 +1,26 @@
-import findpapers
 from datetime import date, timedelta
 from time import sleep
-import os
 import json
-from tqdm import tqdm
 from typing import Any, Optional
-import pandas as pd
 import requests
+from pathlib import Path
+
 import defusedxml.ElementTree as ET
+import findpapers
+import pandas as pd
+from tqdm import tqdm
 
 
 class PapersSurf:
     def __init__(
-        self, tmp_dir: str, query: Optional[str] = None, since: Optional[int] = None
+        self, tmp_dir: Path, query: Optional[str] = None, since: Optional[int] = None
     ) -> None:
         self.today: date = date.today()
         self.query = query
         self.since: date = self.today - timedelta(
             days=since if since is not None else 1
         )
-        self.search_results_file: str = os.path.join(
-            tmp_dir, f"{self.today.strftime('%Y-%m-%d')}.json"
-        )
+        self.search_results_file = tmp_dir / f"{self.today.strftime('%Y-%m-%d')}.json"
         self.databases = ["biorxiv", "arxiv", "pubmed"]
 
     def search_articles(self, limit, limit_per_database) -> list[dict[str, Any]]:
@@ -88,18 +87,18 @@ def get_pubmed_doi(
     return None
 
 
-def article_analyser(articles: list[dict[str, Any]]) -> pd.DataFrame:
+def article_analyser(
+    articles: list[dict[str, Any]], ncbi_api_key: Optional[str] = None
+) -> pd.DataFrame:
     for article in tqdm(articles):
         if "PubMed" in article["databases"]:
-            doi = get_pubmed_doi(article["title"])
+            doi = get_pubmed_doi(article["title"], ncbi_api_key=ncbi_api_key)
             article["url"] = f"https://doi.org/{doi}" if doi else None
         else:
             article["url"] = next(
-                (s for s in article["urls"] if s.startwith("https://doi.org")), None
+                (s for s in article["urls"] if s.startswith("https://doi.org")), None
             )
-    articles = [
-        article for article["urls"] in articles if article.get("url") is not None
-    ]
+    articles = [article for article in articles if article.get("url") is not None]
 
     df_articles = pd.DataFrame.from_dict(articles)
     columns = ["databases", "publication_date", "title", "keywords", "url"]
@@ -123,7 +122,6 @@ def article_analyser(articles: list[dict[str, Any]]) -> pd.DataFrame:
             "IsPreprint",
             "Title",
             "Keywords",
-            "Preprint",
             "URL",
         ]
     ]
