@@ -3,12 +3,15 @@ name = "paper_bot_ai"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 dependencies = [
     "aiogram>=3.21.0",
     "asyncio>=3.4.3",
     "defusedxml>=0.7.1",
-    "findpapers>=0.6.7",
+    "findpapers",
     "pandas>=2.3.1",
     "tqdm>=4.67.1",
 ]
+
+[tool.uv.sources]
+findpapers = { git = "https://github.com/denisstrizhkin/findpapers.git", rev = "751abcc6863cb4599b7fb07e415416cb64451c63" }
