@@ -8,6 +8,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart
 from aiogram.types import Message
+from search_papers import PapersSurf, article_analyser
 
 TOKEN = os.getenv("BOT_TOKEN")
 
@@ -24,6 +25,13 @@ async def command_start_handler(message: Message) -> None:
 
 @dp.message()
 async def paper_search(message: Message) -> None:
+    article_explorer = PapersSurf(
+        tmp_dir="tmp/",
+        query=message.text,
+        since=30,
+    )
+    articles = article_explorer.search_articles(1200, 400)
+    parsed_articles = article_analyser(articles=articles)
     await message.send_copy(chat_id=message.chat.id)
 
 
