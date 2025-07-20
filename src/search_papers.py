@@ -1,29 +1,36 @@
-from datetime import date, timedelta
-from time import sleep
 import json
-from typing import Any, Optional
-import requests
+import logging
+from datetime import date, timedelta
 from pathlib import Path
+from time import sleep
+from typing import Any
 
 import defusedxml.ElementTree as ET
 import findpapers
 import pandas as pd
+import requests
 from tqdm import tqdm
+
+logger = logging.getLogger(__name__)
 
 
 class PapersSurf:
     def __init__(
-        self, tmp_dir: Path, query: Optional[str] = None, since: Optional[int] = None
+        self, tmp_dir: Path, query: str | None = None, since: int | None = None
     ) -> None:
         self.today: date = date.today()
-        self.query = query
+        self.query: str | None = query
         self.since: date = self.today - timedelta(
             days=since if since is not None else 1
         )
-        self.search_results_file = tmp_dir / f"{self.today.strftime('%Y-%m-%d')}.json"
-        self.databases = ["biorxiv", "arxiv", "pubmed"]
+        self.search_results_file: Path = (
+            tmp_dir / f"{self.today.strftime('%Y-%m-%d')}.json"
+        )
+        self.databases: list[str] = ["biorxiv", "arxiv", "pubmed"]
 
-    def search_articles(self, limit, limit_per_database) -> list[dict[str, Any]]:
+    def search_articles(
+        self, limit, limit_per_database
+    ) -> list[dict[str, Any]]:
         if self.query:
             findpapers.search(
                 outputpath=self.search_results_file,
@@ -38,23 +45,26 @@ class PapersSurf:
                 articles_dict = json.load(papers_file)["papers"]
             return list(articles_dict)
         else:
-            print(
-                "Query is empty! Don't know what to search for."
-            )  # TODO: change to logger
+            logger.warning("Query is empty! Don't know what to search for.")
+            return []
 
 
 def get_pubmed_doi(
     title: str,
     seconds_to_wait: float = 1 / 10,
-    ncbi_api_key: Optional[str] = None,
+    ncbi_api_key: str | None = None,
     n_retries: int = 3,
-) -> Optional[str]:
+) -> str | None:
     api_key = f"&api_key={ncbi_api_key}" if ncbi_api_key else ""
     base_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
-    search_url = f"{base_url}esearch.fcgi?db=pubmed&term={title}&retmode=json{api_key}"
+    search_url = (
+        f"{base_url}esearch.fcgi?db=pubmed&term={title}&retmode=json{api_key}"
+    )
     for _ in range(n_retries):
         try:
-            search_response = requests.get(search_url, timeout=10)  # Added timeout
+            search_response = requests.get(
+                search_url, timeout=10
+            )  # Added timeout
             search_data = search_response.json()
             # NCBI does not allow more than 3 requests per second (10 with an API key)
             if seconds_to_wait:
@@ -79,7 +89,9 @@ def get_pubmed_doi(
         sleep(seconds_to_wait)
     fetch_url = f"{base_url}efetch.fcgi?db=pubmed&id={pubmed_id}&retmode=xml"
     fetch_response = requests.get(fetch_url, timeout=10)  # Added timeout
-    root = ET.fromstring(fetch_response.content)  # Using defusedxml for parsing
+    root = ET.fromstring(
+        fetch_response.content
+    )  # Using defusedxml for parsing
     for article in root.findall(".//Article"):
         for el in article.findall(".//ELocationID"):
             if el.attrib.get("EIdType") == "doi":
@@ -88,7 +100,7 @@ def get_pubmed_doi(
 
 
 def article_analyser(
-    articles: list[dict[str, Any]], ncbi_api_key: Optional[str] = None
+    articles: list[dict[str, Any]], ncbi_api_key: str | None = None
 ) -> pd.DataFrame:
     for article in tqdm(articles):
         if "PubMed" in article["databases"]:
@@ -96,9 +108,16 @@ def article_analyser(
             article["url"] = f"https://doi.org/{doi}" if doi else None
         else:
             article["url"] = next(
-                (s for s in article["urls"] if s.startswith("https://doi.org")), None
+                (
+                    s
+                    for s in article["urls"]
+                    if s.startswith("https://doi.org")
+                ),
+                None,
             )
-    articles = [article for article in articles if article.get("url") is not None]
+    articles = [
+        article for article in articles if article.get("url") is not None
+    ]
 
     df_articles = pd.DataFrame.from_dict(articles)
     columns = ["databases", "publication_date", "title", "keywords", "url"]

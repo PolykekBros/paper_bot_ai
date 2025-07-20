@@ -1,7 +1,7 @@
-from aiogram.utils import formatting
-from aiogram.utils.formatting import Text, Bold, Italic, TextLink
-from aiogram.types import Message
 import pandas as pd
+from aiogram.types import Message
+from aiogram.utils import formatting
+from aiogram.utils.formatting import Bold, Italic, Text, TextLink
 
 
 def message_generator(articles: pd.DataFrame, message: Message) -> Text:
