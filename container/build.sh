@@ -1,3 +1,3 @@
 #!/usr/bin/env sh
 
-podman build -t paperbee .
+podman build -f ./container/Containerfile -t paperbot .
